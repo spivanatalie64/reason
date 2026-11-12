@@ -421,6 +421,16 @@ async function loadBranches() {
     const { branches } = await api(`/api/repos/${state.repoId}/branches`);
     state.branches = branches;
 
+    container.appendChild(
+      el('div', { class: 'row-actions', style: 'margin-bottom:10px' }, [
+        el('button', {
+          class: 'btn btn-small',
+          text: 'New branch…',
+          onclick: openBranchDialog,
+        }),
+      ]),
+    );
+
     if (!branches.length) {
       container.appendChild(el('div', { class: 'empty', text: 'No local branches.' }));
       return;
@@ -484,7 +494,16 @@ async function loadCommits() {
           el('div', { class: 'branch-subject', text: `${node.author} · ${ago(node.at * 1000)}` }),
         ]),
         el('span', { class: 'branch-counts', text: node.sha.slice(0, 8) }),
-        el('span', {}),
+        el('div', { class: 'row-actions' }, [
+          el('button', {
+            class: 'btn btn-small',
+            text: 'Cherry-pick',
+            onclick: (event) => {
+              event.stopPropagation();
+              runAction('cherryPick', { sha: node.sha });
+            },
+          }),
+        ]),
       ]),
     );
   }
@@ -766,17 +785,16 @@ function switchSideTab(name) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Ask for a commit message and hand it to the guarded commit action.
+ * Ask for a single line of text, then hand it to a guarded action.
  *
- * The message is typed by a person, but it still goes through the same
+ * The value is typed by a person, but it still goes through the same
  * preview-then-confirm path as every other write, so the exact `git` command
  * is always shown before anything runs.
  */
-function openCommitDialog() {
+function openTextDialog({ title, note, placeholder, value = '', rows = 4, onSubmit }) {
   const modal = $('#modal');
-  $('#modal-title').textContent = 'Commit staged changes';
-  $('#modal-note').textContent =
-    'The staged changes will be committed with this message. Nothing is written until you confirm.';
+  $('#modal-title').textContent = title;
+  $('#modal-note').textContent = note || '';
   $('#modal-command').textContent = '';
 
   const extra = $('#modal-extra');
@@ -784,9 +802,10 @@ function openCommitDialog() {
 
   const input = el('textarea', {
     class: 'commit-input',
-    rows: '4',
-    placeholder: 'feat(scope): what this change does',
+    rows: String(rows),
+    placeholder: placeholder || '',
   });
+  input.value = value;
   extra.appendChild(input);
 
   modal.hidden = false;
@@ -801,18 +820,37 @@ function openCommitDialog() {
   };
 
   const onConfirm = async () => {
-    const message = input.value.trim();
-    if (!message) {
-      toast('A commit message is required', 'error');
+    const text = input.value.trim();
+    if (!text) {
+      toast('A value is required', 'error');
       return;
     }
     close();
-    await runAction('commit', { message });
+    await onSubmit(text);
   };
 
   confirmBtn.addEventListener('click', onConfirm);
   cancelBtn.addEventListener('click', close);
   input.focus();
+}
+
+function openCommitDialog() {
+  openTextDialog({
+    title: 'Commit staged changes',
+    note: 'The staged changes will be committed with this message. Nothing is written until you confirm.',
+    placeholder: 'feat(scope): what this change does',
+    onSubmit: (message) => runAction('commit', { message }),
+  });
+}
+
+function openBranchDialog() {
+  openTextDialog({
+    title: 'Create a branch',
+    note: 'The new branch starts from the current HEAD. The working tree must be clean.',
+    placeholder: 'features/what-this-is-about',
+    rows: 1,
+    onSubmit: (name) => runAction('branch', { name }),
+  });
 }
 
 async function runAction(action, args) {
