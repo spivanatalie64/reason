@@ -1,0 +1,17 @@
+Why the second commit exists.
+
+The issue scoped the guarded write actions as stage, unstage, commit, branch,
+checkout, merge, cherry-pick, stash and stash pop. The API implemented all
+of them from the start, but only stage, stash, merge and commit had anywhere
+in the interface to be reached from, so branch creation and cherry-picking
+were features that existed in the backend and nowhere else.
+
+The branch-name validation is worth a second look, because it is the one
+place where a browser-supplied string comes close to a command line. The
+allow-list regex rejects anything that is not a plain branch name: shell
+metacharacters, a leading dash that git would read as an option, and path
+traversal. Verified against 'main; rm -rf /', '--upload-pack=evil', '-x' and
+'../../etc' - all rejected before anything was run. The action array is built
+from values that have already passed that check, and git is invoked through
+spawn with an argument array rather than a shell, so there is no second
+parsing pass to get wrong.
