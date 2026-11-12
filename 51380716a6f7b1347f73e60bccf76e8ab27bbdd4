@@ -1,0 +1,26 @@
+Why the graph is two panes.
+
+The first version drew the lanes and the commit subjects into one SVG. That
+works fine on a history with a handful of branches and falls apart on one with
+many: 'git log --all' over the archiso teaching repository produces 42 lanes,
+the lane area swallows the entire pane, and the subjects - the only part worth
+reading - get pushed off the right edge behind the commit panel.
+
+So the graph is now a lane pane and a label pane side by side. The lanes get
+their own box and scroll sideways inside it when they have to; the labels get
+whatever width is left. The two scroll together vertically, so a row always
+lines up with its subject. The lane columns also get narrower as the branch
+count grows, because a lane you cannot see is a lane that does not help.
+
+Two bugs were worth the time they cost, and both are the kind that look fine
+in a screenshot and are not. The SVG helper in graph.js is namespaced to the
+SVG namespace, so using it to create the two pane divs produced SVG-namespaced
+divs that lay out at zero size - the graph rendered 300 nodes and showed
+nothing. And buildGraph referenced a column-width constant that had been
+removed when the lanes became adaptive, which broke the whole graph behind a
+caught promise rejection, surfaced only as a toast.
+
+Both were caught by driving the real page in a headless browser and reading
+the numbers back out of the DOM, and the verification now also fails on a
+visible error toast, since a failure inside the application is reported
+through a toast rather than an exception.
