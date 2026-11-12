@@ -133,45 +133,56 @@ function el(name, attrs = {}) {
 }
 
 /**
- * Render the graph into an SVG element.
+ * Render the graph.
  *
  * `onSelect` is called with the commit node when a node or its label is
  * clicked.
  *
- * The layout follows GitKraken: the lane columns sit on the left and the
- * commit labels sit in one column to the right of them. Labels are not drawn
- * beside their own node, because with several lanes in play a label there
- * would collide with the lane next to it.
+ * The graph is two panes side by side rather than one drawing, because a
+ * history with many branches has a wide lane area and the commit subjects
+ * are what actually matter. The lanes get their own box, which scrolls
+ * sideways if it has to, and the labels get whatever is left over. The two
+ * scroll together vertically, so a row always lines up with its subject.
  */
-export function renderGraph(container, graph, { onSelect, labelWidth } = {}) {
+export function renderGraph(container, graph, { onSelect } = {}) {
   container.textContent = '';
 
-  const laneWidth = COLUMN_WIDTH * Math.max(graph.columnCount, 1) + 30;
-  const labels = labelWidth || LABEL_WIDTH;
-  const width = laneWidth + labels;
+  const columns = Math.max(graph.columnCount, 1);
+  // A history with many branches would otherwise push the labels off the
+  // edge of the pane, so the lanes get narrower as the branch count grows.
+  const columnWidth = columns > 16 ? 12 : columns > 10 ? 16 : 22;
+  const laneWidth = columnWidth * columns + 30;
   const height = graph.height;
 
-  const svg = el('svg', {
-    class: 'graph-svg',
-    width,
+  // These are HTML boxes, not SVG elements: `el` below is namespaced to
+  // SVG, so an SVG-namespaced <div> would not lay out at all.
+  const lanesBox = document.createElement('div');
+  lanesBox.className = 'graph-lanes';
+  const labelsBox = document.createElement('div');
+  labelsBox.className = 'graph-labels';
+  container.appendChild(lanesBox);
+  container.appendChild(labelsBox);
+
+  const x = (col) => 20 + col * columnWidth;
+  const y = (row) => 20 + row * ROW_HEIGHT;
+
+  const laneSvg = el('svg', {
+    class: 'graph-svg graph-svg-lanes',
+    width: laneWidth,
     height,
-    viewBox: `0 0 ${width} ${height}`,
+  });
+  const labelSvg = el('svg', {
+    class: 'graph-svg graph-svg-labels',
+    width: '100%',
+    height,
   });
 
   const edgeLayer = el('g', { class: 'graph-edges' });
   const nodeLayer = el('g', { class: 'graph-nodes' });
-  const labelLayer = el('g', { class: 'graph-labels' });
-  svg.appendChild(edgeLayer);
-  svg.appendChild(nodeLayer);
-  svg.appendChild(labelLayer);
-
-  const x = (col) => 20 + col * COLUMN_WIDTH;
-  const y = (row) => 20 + row * ROW_HEIGHT;
-
-  // The separator between the lanes and the labels.
-  svg.appendChild(
-    el('line', { x1: laneWidth, y1: 0, x2: laneWidth, y2: height, class: 'graph-divider' }),
-  );
+  const labelLayer = el('g', { class: 'graph-labels-layer' });
+  laneSvg.appendChild(edgeLayer);
+  laneSvg.appendChild(nodeLayer);
+  labelSvg.appendChild(labelLayer);
 
   // Edges first so the nodes sit on top of them.
   for (const edge of graph.edges) {
@@ -192,8 +203,6 @@ export function renderGraph(container, graph, { onSelect, labelWidth } = {}) {
     );
   }
 
-  const labelX = laneWidth + 12;
-
   for (const node of graph.nodes) {
     const cx = x(node.col);
     const cy = y(node.row);
@@ -210,8 +219,7 @@ export function renderGraph(container, graph, { onSelect, labelWidth } = {}) {
 
     // Branch and tag tips get a ring so they stand out from plain commits.
     const refs = node.refs || [];
-    const local = refs.filter((r) => !r.remote);
-    if (local.length) {
+    if (refs.some((r) => !r.remote)) {
       group.appendChild(
         el('circle', { cx, cy, r: NODE_RADIUS + 3, class: 'graph-tip', fill: 'none' }),
       );
@@ -220,11 +228,11 @@ export function renderGraph(container, graph, { onSelect, labelWidth } = {}) {
     group.addEventListener('click', () => onSelect && onSelect(node));
     nodeLayer.appendChild(group);
 
-    // The label row: ref names, subject, author, date.
+    // The label row: ref names, then the subject.
     const label = el('g', { class: 'graph-label' });
-    let textX = labelX;
+    let textX = 10;
 
-    for (const ref of local) {
+    for (const ref of refs.filter((r) => !r.remote)) {
       const text = el('text', { x: textX, y: cy + 4, class: 'graph-ref' });
       text.textContent = ref.short;
       label.appendChild(text);
@@ -245,8 +253,21 @@ export function renderGraph(container, graph, { onSelect, labelWidth } = {}) {
     labelLayer.appendChild(label);
   }
 
-  container.appendChild(svg);
-  return svg;
+  lanesBox.appendChild(laneSvg);
+  labelsBox.appendChild(labelSvg);
+
+  // The two panes scroll as one.
+  let syncing = false;
+  const sync = (from, to) => {
+    if (syncing) return;
+    syncing = true;
+    to.scrollTop = from.scrollTop;
+    syncing = false;
+  };
+  lanesBox.addEventListener('scroll', () => sync(lanesBox, labelsBox));
+  labelsBox.addEventListener('scroll', () => sync(labelsBox, lanesBox));
+
+  return { laneSvg, labelSvg, laneWidth };
 }
 
 /**

@@ -203,13 +203,7 @@ function renderGraphView() {
   }
 
   empty.hidden = true;
-
-  // The label column takes whatever room the lanes leave over, so the
-  // subjects are as readable as the window allows.
-  const laneWidth = 22 * Math.max(state.graph.columnCount, 1) + 30;
-  const labelWidth = Math.max(280, container.clientWidth - laneWidth - 24);
-
-  renderGraph(container, state.graph, { onSelect: selectCommit, labelWidth });
+  renderGraph(container, state.graph, { onSelect: selectCommit });
   highlightBranch(container.querySelector('.graph-svg'), []);
 }
 
@@ -1064,6 +1058,14 @@ function wire() {
   });
 
   $('#refresh').addEventListener('click', () => refresh());
+
+  // The commit panel can be folded away to give the graph the full width.
+  $('#panel-toggle').addEventListener('click', () => {
+    const pane = $('.pane-main');
+    const collapsed = pane.classList.toggle('is-panel-collapsed');
+    $('#panel-toggle').textContent = collapsed ? '›' : '‹';
+    if (state.graph) renderGraphView();
+  });
   $('#drawer-close').addEventListener('click', () => {
     $('#drawer').hidden = true;
   });

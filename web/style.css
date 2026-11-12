@@ -315,12 +315,35 @@ body {
 
 .graph-wrap {
   flex: 1 1 auto;
-  overflow: auto;
+  overflow: hidden;
   min-width: 0;
   position: relative;
+  display: flex;
 }
 
-.graph { padding: 12px; min-width: 100%; }
+/* The lanes and the labels are separate panes that scroll together
+   vertically. The lanes scroll sideways on their own when a history has too
+   many branches to fit. */
+.graph {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 0;
+}
+
+.graph-lanes {
+  flex: 0 0 auto;
+  max-width: 45%;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+}
+
+.graph-labels {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 
 .graph-svg { display: block; }
 
@@ -755,6 +778,8 @@ body {
   font: 12px var(--sans);
 }
 
+.graph-svg-labels { display: block; }
+
 .graph-label:hover .graph-subject { fill: var(--accent); }
 
 .graph-ref {
@@ -782,3 +807,28 @@ body {
 }
 
 .commit-input:focus { outline: none; border-color: var(--accent-dim); }
+
+/* Collapsible commit panel ------------------------------------------ */
+
+.panel-toggle {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  z-index: 5;
+  width: 18px;
+  height: 24px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 0 5px 5px 0;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+}
+
+.panel-toggle:hover { color: var(--text); background: var(--bg-hover); }
+
+.pane-main { position: relative; }
+
+.pane-main.is-panel-collapsed .commit-panel { display: none; }
