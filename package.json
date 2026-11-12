@@ -1,0 +1,15 @@
+{
+  "name": "reason",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI-native Git client dashboard for agent-driven work on one machine",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "start": "node server/index.mjs",
+    "check": "node --check server/index.mjs && node --check server/git.mjs && node --check server/sessions.mjs && node --check server/ai.mjs && node --check server/actions.mjs && node --check web/app.js && node --check web/graph.js"
+  },
+  "dependencies": {}
+}
