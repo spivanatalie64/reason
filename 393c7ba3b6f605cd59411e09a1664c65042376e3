@@ -1,0 +1,40 @@
+Why this exists.
+
+Work on this machine is done by agents, and the tooling still assumes a human
+is the only actor. Git alone cannot answer which repository has an agent
+mid-task right now, which branch that agent created, or whether the working
+tree is dirty because of your edit or because an agent left it half-finished.
+Reason joins the two data sources that already exist here: the Git
+repositories under ~/.ai/.src, and the opencode session database. It reads
+both and shows the result on one board.
+
+Three decisions worth recording for whoever picks this up next.
+
+The commit graph does not use 'git log --graph'. The ASCII form throws away
+lane identity across merges and re-flows its lanes as the history grows, so
+there is no way to colour or hover an individual edge. We take the raw commit
+list in topological order and compute the columns ourselves, which is what
+makes the edges individually addressable.
+
+There are no runtime dependencies. Node's built-in node:sqlite, node:http and
+fetch cover everything. The one library that would otherwise be needed -
+better-sqlite3 - is a native compile, and a native compile is the one
+dependency that can fail to build on a machine where nothing else will. It
+also means there is no npm install to run, nothing to audit, and nothing to
+break when a transitive dependency is updated.
+
+Every write is guarded rather than merely offered. A browser-supplied string
+never becomes a Git argument: each action validates its inputs against what
+the repository actually contains and then builds a fixed argument array.
+Actions are previewed by running the same code path with confirm: false, so
+the command shown is literally the command that would run. 'git merge-tree'
+detects conflicts without touching the working tree.
+
+The AI panel has two backends. Ollama is preferred because an answer from it
+never leaves the machine. The opencode service is the fallback, because it is
+the agent runtime this machine already uses, so the panel reasons with the
+same models the agents do. On this machine the Ollama runtime library is
+missing (llama-server is absent from ~/.local/lib/ollama, so generation
+fails) even though the client and both models are installed. The panel falls
+back automatically and the status chip says which backend answered, rather
+than pretending the local one is working.
