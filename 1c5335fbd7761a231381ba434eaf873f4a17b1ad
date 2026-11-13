@@ -1,0 +1,21 @@
+Why this commit makes the app usable rather than just compilable.
+
+The first native commit established the modules and a shell that could draw the
+graph but not interact with it. A Git client that cannot show what a commit
+changed or what an agent said is not doing its job, so this wires the
+interactions that turn the shell into a working tool:
+
+- Click handling on the Cairo-drawn graph maps the y position back to a commit
+  row (the same row height the renderer uses) so selecting a commit is a direct
+  hit test, not a separate list widget that would drift out of sync with the
+  lanes.
+- Selecting a commit loads its diff via the git module and renders it in a
+  monospace text view; a 'Review this change' action sends the diff to the local
+  AI backend on a worker thread and posts the result back through a GLib idle
+  poll, keeping the UI thread responsive.
+- Selecting a session loads its transcript from the read-only opencode database
+  and offers 'Summarize this session', again off the UI thread.
+
+The AI calls go through the same backend selection as before (Ollama preferred,
+opencode service fallback) and run in a background thread because a local model
+can take tens of seconds; blocking the GTK main loop would freeze the window.
