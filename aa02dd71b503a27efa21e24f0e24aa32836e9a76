@@ -1,0 +1,25 @@
+Why this is a GTK C+Rust native application.
+
+The first implementation (PR #2, now closed) delivered the feature set as a
+Node server and a browser UI. That was the wrong form factor: Reason is meant
+to be a native desktop application. This commit replaces that direction with
+a GTK4 binary built from Rust and C.
+
+The shape follows the pattern already used in acreetion-surf on this machine:
+Cargo drives the build, build.rs compiles C translation units via the cc crate,
+and Rust owns the application structure. C is used for the graph lane
+assignment (pure array work over the commit window) so the layout hot path is
+small and testable without GTK; Rust owns the GTK object graph, Git access,
+the read-only SQLite session reader, and the AI backend wiring.
+
+Git is accessed by shelling out to the git CLI with fixed argument arrays and
+no shell. The previous prototype proved the parsing and the guarded-mutation
+contract (preview built by the same path as execution, merge-tree conflict
+detection, strict branch/SHA validation); that logic is ported here rather
+than reinvented. The opencode session database is opened read-only.
+
+cargo check completes without errors against GTK4 4.24.1. The UI is an initial
+shell (repo sidebar, commit graph drawn with Cairo, session feed) rather than
+the full GitKraken-parity interface yet; diff rendering, the transcript/AI
+panel, and the confirmation dialogs for guarded actions are the next pieces to
+wire in on top of these modules.
